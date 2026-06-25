@@ -179,6 +179,7 @@ function renderDash(){
 /* ---------- event marker plugin ---------- */
 const eventMarkerPlugin={id:'eventMarkers',afterDatasetsDraw(chart){
   try{
+    if(!chart.canvas||chart.canvas.id!=='bigChart')return;
     if(!chartEvents.length)return;
     const {ctx,chartArea:{top,bottom},scales:{x}}=chart;
     chartEvents.forEach(ev=>{
