@@ -65,6 +65,10 @@ h2.sec{font-size:15px;color:var(--green-d);margin:18px 0 10px}
 .ph img{width:100%;height:130px;object-fit:cover;display:block;cursor:pointer;background:#eee}
 .ph .cap{font-size:11px;padding:5px 7px;color:var(--mut)}
 .muted{color:var(--mut);font-size:13px}
+.idbadge{display:inline-block;background:var(--green-d);color:#fff;font-weight:700;border-radius:6px;padding:2px 9px;font-size:14px;letter-spacing:.5px}
+.erow{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+.eStat{font-size:12px;font-weight:600}.eStat.ok{color:var(--on)}.eStat.q{color:#b26a00}
+.qbadge{font-weight:700;color:#b26a00;font-size:12px}
 @media print{
   header .fld,header .btn,nav,.status-bar,#entry,.no-print{display:none!important}
   body{background:#fff}
@@ -86,30 +90,23 @@ h2.sec{font-size:15px;color:var(--green-d);margin:18px 0 10px}
 <nav>
   <button data-tab="dash" class="active" onclick="tab('dash')">Dashboard</button>
   <button data-tab="detail" onclick="tab('detail')">Crop Detail</button>
-  <button data-tab="entry" onclick="tab('entry')">Data Entry</button>
   <button data-tab="log" onclick="tab('log')">Events Log</button>
 </nav>
-<div class="status-bar" id="status">Using built-in data (offline). Connect a Sheet URL to go live.</div>
+<div class="status-bar"><span id="status">Using built-in data (offline). Connect a Sheet URL to go live.</span> <span id="qbadge" class="qbadge"></span></div>
 <main>
   <section id="dash"></section>
   <section id="detail" style="display:none">
     <div class="row">
       <div class="fld"><label class="legend" style="margin:0">Crop</label><select id="cropSel" onchange="renderDetail()"></select></div>
+      <button class="btn" onclick="stepCrop(-1)">‹ Prev</button>
+      <button class="btn" onclick="stepCrop(1)">Next ›</button>
     </div>
+    <div id="detailHdr" style="margin:4px 0 12px"></div>
     <div class="chartwrap"><canvas id="bigChart"></canvas></div>
     <div class="legend"><span style="background:#2E7D32"></span>Target curve<span style="background:#1565C0"></span>Actual height<span style="background:#8E24AA"></span>Event</div>
     <div id="detailTable"></div>
     <div id="eventsBox"></div>
     <div id="photosBox"></div>
-  </section>
-  <section id="entry" style="display:none">
-    <h2 class="sec" style="margin-top:0">Log weekly heights</h2>
-    <p class="hint">Pick a week and enter actual height (inches) for any crop that's in its growth window that week. Saving writes straight to the Google Sheet. Blank = no reading.</p>
-    <div class="row">
-      <div class="fld"><label>Week #</label><input type="number" id="entryWeek" min="1" max="53"/></div>
-      <button class="btn go" onclick="saveEntries()">Save week</button>
-    </div>
-    <div id="entryTable"></div>
   </section>
   <section id="log" style="display:none"></section>
 </main>
@@ -133,7 +130,7 @@ function escA(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;');}
 function escH(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
 /* ---------- nav ---------- */
-function tab(t){document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));['dash','detail','entry','log'].forEach(s=>document.getElementById(s).style.display=s===t?'':'none');if(t==='dash')renderDash();if(t==='detail')renderDetail();if(t==='entry')renderEntry();if(t==='log')renderLog();}
+function tab(t){document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));['dash','detail','log'].forEach(s=>document.getElementById(s).style.display=s===t?'':'none');if(t==='dash')renderDash();if(t==='detail')renderDetail();if(t==='log')renderLog();}
 
 /* ---------- dashboard ---------- */
 function renderDash(){
@@ -194,13 +191,16 @@ const eventMarkerPlugin={id:'eventMarkers',afterDatasetsDraw(chart){
 Chart.register(eventMarkerPlugin);
 
 /* ---------- detail ---------- */
-function fillCropSel(){const s=document.getElementById('cropSel');s.innerHTML=DATA.crops.map(c=>`<option value="${escA(c.id)}">${escH(c.name)}</option>`).join('');}
+function markerId(c){return 'M'+String(c.order).padStart(2,'0');}
+function fillCropSel(){const s=document.getElementById('cropSel');s.innerHTML=DATA.crops.map(c=>`<option value="${escA(c.id)}">${markerId(c)} · ${escH(c.name)}</option>`).join('');}
+function stepCrop(d){const s=document.getElementById('cropSel');let i=s.selectedIndex+d;if(i<0)i=0;if(i>=s.options.length)i=s.options.length-1;s.selectedIndex=i;renderDetail();}
 function renderDetail(){
   const id=document.getElementById('cropSel').value||(DATA.crops[0]&&DATA.crops[0].id);
   const c=DATA.crops.find(x=>x.id===id); if(!c)return;
   const cur=targetCurve(c);
   chartWeeks=cur.map(p=>p.week);
   chartEvents=DATA.events.filter(e=>e.crop===c.id);
+  const hdr=document.getElementById('detailHdr'); if(hdr)hdr.innerHTML=`<span class="idbadge">${markerId(c)}</span> <b>${escH(c.name)}</b> <span class="muted">— ${c.pot} · ${escH(c.grower)}${c.location?' · '+escH(c.location):''} · ready wk ${c.finishWeek}</span>`;
   if(bigChart)bigChart.destroy();
   bigChart=new Chart(document.getElementById('bigChart'),{type:'line',
     data:{labels:cur.map(p=>'Wk '+p.week),datasets:[
@@ -210,12 +210,29 @@ function renderDetail(){
     options:{responsive:true,maintainAspectRatio:false,
       plugins:{legend:{position:'top'},title:{display:true,text:c.name+'  —  Height (in) vs Week',font:{size:14}}},
       scales:{y:{title:{display:true,text:'Height (in)'},beginAtZero:false}}}});
+  const wk=CUR_WEEK;
+  const measure=`<div class="panel no-print">
+      <h2 class="sec" style="margin-top:0">Log measurement</h2>
+      <div class="erow">
+        <div class="fld"><label>Week #</label><input type="number" id="mWeek" min="1" max="53" value="${wk}" style="width:88px" onchange="syncMeasure('${escA(c.id)}')"></div>
+        <div class="fld"><label>Height (in) <span id="mTgt" class="muted"></span></label><input type="number" step="0.1" id="mHeight" style="width:110px"></div>
+        <div class="fld"><label>Photo (optional)</label><input type="file" id="mPhoto" accept="image/*" capture="environment"></div>
+        <div class="fld" style="flex:1;min-width:140px"><label>Note (optional)</label><input type="text" id="mNote" placeholder="note for photo / reading"></div>
+        <button class="btn go" onclick="saveMeasure('${escA(c.id)}')">Save</button>
+        <span id="mStat" class="eStat"></span>
+      </div></div>`;
   let rows=cur.map(p=>{const a=actualFor(c.id,p.week);const d=a===null?null:+(a-p.target).toFixed(1);
     const dCls=d===null?'':(d>=0.8?'delta-pos':d<=-0.8?'delta-neg':'delta-on');
     return `<tr class="${p.week===CUR_WEEK?'cur':''}"><td>${p.idx}</td><td>${p.week}</td><td>${p.target.toFixed(1)}"</td><td>${a===null?'—':a+'"'}</td><td class="${dCls}">${d===null?'':(d>0?'+':'')+d+'"'}</td></tr>`;}).join('');
-  document.getElementById('detailTable').innerHTML=`<h2 class="sec">Week-by-week</h2><table><tr><th>Wk idx</th><th>Week #</th><th>Target</th><th>Actual</th><th>Δ</th></tr>${rows}</table>`;
+  document.getElementById('detailTable').innerHTML=measure+`<h2 class="sec">Week-by-week</h2><table><tr><th>Wk idx</th><th>Week #</th><th>Target</th><th>Actual</th><th>Δ</th></tr>${rows}</table>`;
+  syncMeasure(c.id);
   renderEvents(c);
   renderPhotos(c);
+}
+function syncMeasure(cropId){const c=DATA.crops.find(x=>x.id===cropId);if(!c)return;const wk=+document.getElementById('mWeek').value;const cur=targetCurve(c);const p=cur.find(x=>x.week===wk);const saved=actualFor(c.id,wk);
+  const t=document.getElementById('mTgt');if(t)t.textContent=p?('· target '+p.target.toFixed(1)+'"'):'· (out of window)';
+  const h=document.getElementById('mHeight');if(h&&saved!==null)h.value=saved;
+  const st=document.getElementById('mStat');if(st){st.className='eStat '+(saved!==null?'ok':'');st.textContent=saved!==null?('✓ logged '+saved+'"'):'';}
 }
 
 /* ---------- events ---------- */
@@ -257,9 +274,8 @@ async function addEvent(cropId){
   const date=new Date().toISOString().slice(0,10);
   crops.forEach(cid=>DATA.events.push({crop:cid,week,date,type,note,loggedBy:who}));
   renderDetail();
-  const url=getUrl();
-  if(url){try{await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'saveEvent',crops,week,date,type,note,loggedBy:who})});toast('Logged "'+type+'" to '+crops.length+' crop(s)');}catch(e){toast('Saved locally; Sheet write failed');}}
-  else toast('Saved locally. Connect a Sheet to persist.');
+  enqueue({action:'saveEvent',crops,week,date,type,note,loggedBy:who});
+  toast('Logged "'+type+'" to '+crops.length+' crop(s)'+(navigator.onLine?'':' (queued offline)'));
 }
 
 /* ---------- photos ---------- */
@@ -293,16 +309,12 @@ async function uploadPhoto(cropId){
   const week=+document.getElementById('phWeek').value||'';
   const note=document.getElementById('phNote').value.trim();
   const who=document.getElementById('who').value||'web';
-  const url=getUrl();
-  if(!url){toast('Connect a Sheet first to store photos');return;}
-  toast('Uploading photo…');
   try{
-    const dataUrl=await resizeImage(f,1200);
-    const b64=dataUrl.split(',')[1];
-    const r=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'savePhoto',crop:cropId,week,note,loggedBy:who,mime:'image/jpeg',b64})});
-    const j=await r.json();
-    if(j&&j.ok){photoCache[j.fileId]=dataUrl;DATA.photos.push({crop:cropId,week,date:new Date().toISOString().slice(0,10),fileId:j.fileId,note,loggedBy:who});renderDetail();toast('Photo saved');}
-    else toast('Upload failed: '+(j&&j.error||'?'));
+    const dataUrl=await resizeImage(f,1200);const b64=dataUrl.split(',')[1];
+    const tmp='tmp'+Date.now();photoCache[tmp]=dataUrl;
+    DATA.photos.push({crop:cropId,week,date:new Date().toISOString().slice(0,10),fileId:tmp,note,loggedBy:who});
+    enqueue({action:'savePhoto',crop:cropId,week,note,loggedBy:who,mime:'image/jpeg',b64});
+    renderDetail();toast(navigator.onLine?'Photo saved':'Photo queued offline');
   }catch(e){toast('Upload error: '+e);}
 }
 
@@ -339,27 +351,35 @@ function drawLog(){
     : '<p class="muted">No events match. Log events from any crop on the Crop Detail tab.</p>';
 }
 
-/* ---------- entry ---------- */
-function renderEntry(){const w=document.getElementById('entryWeek');if(!w.value)w.value=CUR_WEEK;drawEntry();w.onchange=drawEntry;}
-function drawEntry(){
-  const wk=+document.getElementById('entryWeek').value;
-  const inWindow=DATA.crops.filter(c=>wk>=c.startWeek&&wk<=c.finishWeek);
-  let rows=inWindow.map(c=>{const cur=targetCurve(c);const p=cur.find(x=>x.week===wk);const a=actualFor(c.id,wk);
-    return `<tr><td class="l">${escH(c.name)}</td><td>${p?p.target.toFixed(1)+'"':'—'}</td><td><input type="number" step="0.1" data-crop="${escA(c.id)}" value="${a===null?'':a}"/></td></tr>`;}).join('');
-  if(!inWindow.length)rows='<tr><td colspan="3" class="l">No crops are in their growth window in week '+wk+'.</td></tr>';
-  document.getElementById('entryTable').innerHTML=`<table class="entry-tbl"><tr><th class="l">Crop</th><th>Target (wk ${wk})</th><th>Actual height (in)</th></tr>${rows}</table>`;
+/* ---------- offline queue + per-crop save ---------- */
+function idb(){return new Promise((res,rej)=>{const r=indexedDB.open('mumq',1);r.onupgradeneeded=()=>r.result.createObjectStore('q',{keyPath:'id',autoIncrement:true});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+async function qAdd(item){const db=await idb();return new Promise((res,rej)=>{const tx=db.transaction('q','readwrite');tx.objectStore('q').add(item);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);});}
+async function qAll(){const db=await idb();return new Promise((res,rej)=>{const tx=db.transaction('q','readonly');const rq=tx.objectStore('q').getAll();rq.onsuccess=()=>res(rq.result);rq.onerror=()=>rej(rq.error);});}
+async function qDel(id){const db=await idb();return new Promise((res,rej)=>{const tx=db.transaction('q','readwrite');tx.objectStore('q').delete(id);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);});}
+let flushing=false;
+async function flushQueue(){
+  if(flushing)return;flushing=true;
+  try{const url=getUrl();if(!url)return;
+    const items=await qAll();
+    for(const it of items){
+      try{const r=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(it.payload)});const j=await r.json();if(j&&j.ok!==false){await qDel(it.id);}else break;}
+      catch(e){break;}
+    }
+  }finally{flushing=false;updateQueueBadge();}
 }
-async function saveEntries(){
-  const wk=+document.getElementById('entryWeek').value;const who=document.getElementById('who').value||'web';
-  const inputs=[...document.querySelectorAll('#entryTable input')];
-  const batch=[];
-  inputs.forEach(inp=>{const v=inp.value.trim();if(v!==''){batch.push({crop:inp.dataset.crop,week:wk,actual:+v});upsertLocal(inp.dataset.crop,wk,+v,who);}});
-  if(!batch.length){toast('Nothing to save');return;}
-  const url=getUrl();
-  if(url){try{await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'saveBatch',readings:batch,loggedBy:who})});toast('Saved '+batch.length+' reading(s)');}catch(e){toast('Saved locally; Sheet write failed');}}
-  else toast('Saved locally ('+batch.length+').');
-}
+async function updateQueueBadge(){try{const n=(await qAll()).length;const el=document.getElementById('qbadge');if(el)el.textContent=n?('⏳ '+n+' queued — will sync'):'';}catch(e){}}
+async function enqueue(payload){try{await qAdd({payload,ts:Date.now()});}catch(e){}updateQueueBadge();flushQueue();}
 function upsertLocal(crop,week,actual,who){const r=DATA.readings.find(x=>x.crop===crop&&+x.week===+week);if(r){r.actual=actual;r.loggedBy=who;}else DATA.readings.push({crop,week,actual,loggedBy:who,timestamp:''});}
+async function saveMeasure(cropId){
+  const wk=+document.getElementById('mWeek').value;const who=document.getElementById('who').value||'web';
+  const hv=document.getElementById('mHeight').value.trim();const file=document.getElementById('mPhoto').files[0];const note=document.getElementById('mNote').value.trim();
+  if(hv===''&&!file){toast('Enter a height or add a photo');return;}
+  if(hv!==''){const a=+hv;enqueue({action:'save',crop:cropId,week:wk,actual:a,loggedBy:who});upsertLocal(cropId,wk,a,who);}
+  if(file){try{const d=await resizeImage(file,1200);const b64=d.split(',')[1];const tmp='tmp'+Date.now();photoCache[tmp]=d;DATA.photos.push({crop:cropId,week:wk,date:new Date().toISOString().slice(0,10),fileId:tmp,note,loggedBy:who});enqueue({action:'savePhoto',crop:cropId,week:wk,note,loggedBy:who,mime:'image/jpeg',b64});}catch(e){toast('Photo error: '+e);return;}}
+  const c=DATA.crops.find(x=>x.id===cropId);
+  toast((navigator.onLine?'Saved':'Queued offline')+' · '+(c?markerId(c):''));
+  renderDetail();
+}
 
 /* ---------- connect ---------- */
 function getUrl(){return (document.getElementById('apiUrl').value||'').trim();}
@@ -381,8 +401,9 @@ function refresh(){fillCropSel();const active=document.querySelector('nav button
 (function init(){
   const u=localStorage.getItem('mum_url')||DEFAULT_API_URL;document.getElementById('apiUrl').value=u;
   const w=localStorage.getItem('mum_who');if(w)document.getElementById('who').value=w;
-  fillCropSel();renderDash();
-  if(u)connect();
+  fillCropSel();renderDash();updateQueueBadge();
+  window.addEventListener('online',flushQueue);
+  if(u){connect();flushQueue();}
 })();
 </script>
 </body>
