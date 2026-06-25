@@ -87,6 +87,7 @@ h2.sec{font-size:15px;color:var(--green-d);margin:18px 0 10px}
   <button data-tab="dash" class="active" onclick="tab('dash')">Dashboard</button>
   <button data-tab="detail" onclick="tab('detail')">Crop Detail</button>
   <button data-tab="entry" onclick="tab('entry')">Data Entry</button>
+  <button data-tab="log" onclick="tab('log')">Events Log</button>
 </nav>
 <div class="status-bar" id="status">Using built-in data (offline). Connect a Sheet URL to go live.</div>
 <main>
@@ -110,6 +111,7 @@ h2.sec{font-size:15px;color:var(--green-d);margin:18px 0 10px}
     </div>
     <div id="entryTable"></div>
   </section>
+  <section id="log" style="display:none"></section>
 </main>
 <div class="toast" id="toast"></div>
 <script>
@@ -131,7 +133,7 @@ function escA(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;');}
 function escH(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
 /* ---------- nav ---------- */
-function tab(t){document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));['dash','detail','entry'].forEach(s=>document.getElementById(s).style.display=s===t?'':'none');if(t==='dash')renderDash();if(t==='detail')renderDetail();if(t==='entry')renderEntry();}
+function tab(t){document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));['dash','detail','entry','log'].forEach(s=>document.getElementById(s).style.display=s===t?'':'none');if(t==='dash')renderDash();if(t==='detail')renderDetail();if(t==='entry')renderEntry();if(t==='log')renderLog();}
 
 /* ---------- dashboard ---------- */
 function renderDash(){
@@ -302,6 +304,39 @@ async function uploadPhoto(cropId){
     if(j&&j.ok){photoCache[j.fileId]=dataUrl;DATA.photos.push({crop:cropId,week,date:new Date().toISOString().slice(0,10),fileId:j.fileId,note,loggedBy:who});renderDetail();toast('Photo saved');}
     else toast('Upload failed: '+(j&&j.error||'?'));
   }catch(e){toast('Upload error: '+e);}
+}
+
+/* ---------- events log (all crops) ---------- */
+function renderLog(){
+  const types=['All types'].concat(EVENT_TYPES).map(t=>`<option>${t}</option>`).join('');
+  const pots=['All pots'].concat([...new Set(DATA.crops.map(c=>c.pot))]).map(p=>`<option>${p}</option>`).join('');
+  document.getElementById('log').innerHTML=`<h2 class="sec" style="margin-top:0">Events log — all crops</h2>
+    <p class="hint">Every event logged this season. Filter by type or pot size, or search crop/notes.</p>
+    <div class="row no-print">
+      <div class="fld"><label>Type</label><select id="logType" onchange="drawLog()">${types}</select></div>
+      <div class="fld"><label>Pot</label><select id="logPot" onchange="drawLog()">${pots}</select></div>
+      <div class="fld" style="flex:1;min-width:200px"><label>Search</label><input type="text" id="logQ" placeholder="crop or note…" oninput="drawLog()"></div>
+    </div>
+    <div id="logTable"></div>`;
+  drawLog();
+}
+function drawLog(){
+  const byId={};DATA.crops.forEach(c=>byId[c.id]=c);
+  const fT=(document.getElementById('logType')||{}).value||'All types';
+  const fP=(document.getElementById('logPot')||{}).value||'All pots';
+  const fQ=((document.getElementById('logQ')||{}).value||'').toLowerCase();
+  let rows=DATA.events.filter(e=>{
+    const c=byId[e.crop];
+    if(fT!=='All types'&&e.type!==fT)return false;
+    if(fP!=='All pots'&&(!c||c.pot!==fP))return false;
+    if(fQ&&!((e.crop+' '+e.type+' '+(e.note||'')).toLowerCase().includes(fQ)))return false;
+    return true;
+  }).sort((a,b)=>(+a.week||0)-(+b.week||0)||String(a.crop).localeCompare(b.crop));
+  const body=rows.map(e=>{const c=byId[e.crop];
+    return `<tr><td>WK${e.week||'?'}</td><td>${escH(e.date)}</td><td class="l">${escH(e.crop)}</td><td>${c?c.pot:''}</td><td><span class="tag">${escH(e.type)}</span></td><td class="l">${escH(e.note||'')}</td><td>${escH(e.loggedBy||'')}</td></tr>`;}).join('');
+  document.getElementById('logTable').innerHTML = rows.length
+    ? `<p class="muted">${rows.length} event${rows.length>1?'s':''}</p><table><tr><th>Week</th><th>Date</th><th class="l">Crop</th><th>Pot</th><th>Type</th><th class="l">Note</th><th>By</th></tr>${body}</table>`
+    : '<p class="muted">No events match. Log events from any crop on the Crop Detail tab.</p>';
 }
 
 /* ---------- entry ---------- */
