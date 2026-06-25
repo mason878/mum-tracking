@@ -151,7 +151,8 @@ function renderDash(){
 }
 
 /* ---------- detail ---------- */
-function fillCropSel(){const s=document.getElementById('cropSel');s.innerHTML=DATA.crops.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');}
+function escA(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;');}
+function fillCropSel(){const s=document.getElementById('cropSel');s.innerHTML=DATA.crops.map(c=>`<option value="${escA(c.id)}">${c.name}</option>`).join('');}
 function renderDetail(){
   const id=document.getElementById('cropSel').value||DATA.crops[0].id;
   const c=DATA.crops.find(x=>x.id===id);const cur=targetCurve(c);
@@ -179,7 +180,7 @@ function drawEntry(){
   const wk=+document.getElementById('entryWeek').value;
   const inWindow=DATA.crops.filter(c=>wk>=c.startWeek&&wk<=c.finishWeek);
   let rows=inWindow.map(c=>{const cur=targetCurve(c);const p=cur.find(x=>x.week===wk);const a=actualFor(c.id,wk);
-    return `<tr><td class="l">${c.name}</td><td>${p?p.target.toFixed(1)+'"':'—'}</td><td><input type="number" step="0.1" data-crop="${c.id}" value="${a===null?'':a}"/></td></tr>`;}).join('');
+    return `<tr><td class="l">${c.name}</td><td>${p?p.target.toFixed(1)+'"':'—'}</td><td><input type="number" step="0.1" data-crop="${escA(c.id)}" value="${a===null?'':a}"/></td></tr>`;}).join('');
   if(!inWindow.length)rows='<tr><td colspan="3" class="l">No crops are in their growth window in week '+wk+'.</td></tr>';
   document.getElementById('entryTable').innerHTML=`<table class="entry-tbl"><tr><th class="l">Crop</th><th>Target (wk ${wk})</th><th>Actual height (in)</th></tr>${rows}</table>`;
 }
