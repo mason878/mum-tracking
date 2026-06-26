@@ -72,7 +72,8 @@ h2.sec{font-size:15px;color:var(--green-d);margin:18px 0 10px}
 .prog{height:9px;background:var(--line);border-radius:5px;overflow:hidden;margin:8px 0 4px}
 .prog-fill{height:100%;border-radius:5px;transition:width .3s}
 .prog-fill.ahead{background:var(--ahead)}.prog-fill.on{background:var(--on)}.prog-fill.behind{background:var(--behind)}.prog-fill.none{background:#9aa6a0}
-.prog-lbl{font-size:11px;color:var(--mut)}.prog-lbl b{color:var(--ink)}
+.prog-lbl{font-size:11px;color:var(--mut);display:flex;align-items:center;gap:8px}.prog-lbl b{color:var(--ink)}
+.idstamp{display:inline-block;background:var(--green-d);color:#fff;font-weight:700;font-size:11px;border-radius:5px;padding:1px 7px;letter-spacing:.3px;flex:none}
 .crop-card .mini{pointer-events:none}
 .crop-card{cursor:pointer;transition:box-shadow .15s,border-color .15s}
 .crop-card:hover{border-color:var(--green);box-shadow:0 2px 10px rgba(46,125,50,.18)}
@@ -162,7 +163,7 @@ function renderDash(){
         <span class="${dCls}" style="margin-left:auto">${deltaTxt} vs target</span></div>
       ${extra?`<div style="margin:2px 0 6px">${extra}</div>`:''}
       <div class="prog"><div class="prog-fill ${s.cls}" style="width:${Math.max(0,Math.min(100,Math.round((CUR_WEEK-c.startWeek)/((c.finishWeek-1)-c.startWeek)*100)))}%"></div></div>
-      <div class="prog-lbl"><b>${((c.finishWeek-1)-CUR_WEEK)>0?((c.finishWeek-1)-CUR_WEEK)+' wk to finish':(((c.finishWeek-1)-CUR_WEEK)===0?'finish this week':(CUR_WEEK-(c.finishWeek-1))+' wk past finish')}</b> · ${Math.max(0,Math.min(100,Math.round((CUR_WEEK-c.startWeek)/((c.finishWeek-1)-c.startWeek)*100)))}% grown</div>
+      <div class="prog-lbl"><span class="idstamp">${markerId(c)}</span><span><b>${((c.finishWeek-1)-CUR_WEEK)>0?((c.finishWeek-1)-CUR_WEEK)+' wk to finish':(((c.finishWeek-1)-CUR_WEEK)===0?'finish this week':(CUR_WEEK-(c.finishWeek-1))+' wk past finish')}</b> · ${Math.max(0,Math.min(100,Math.round((CUR_WEEK-c.startWeek)/((c.finishWeek-1)-c.startWeek)*100)))}% grown</span></div>
     </div>`;
   });
   html+='</div>';
