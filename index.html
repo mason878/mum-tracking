@@ -77,6 +77,14 @@ h2.sec{font-size:15px;color:var(--green-d);margin:18px 0 10px}
 .crop-card .mini{pointer-events:none}
 .crop-card{cursor:pointer;transition:box-shadow .15s,border-color .15s}
 .crop-card:hover{border-color:var(--green);box-shadow:0 2px 10px rgba(46,125,50,.18)}
+.crop-card.verified{border-color:var(--green);box-shadow:0 0 0 2px var(--green),0 1px 2px rgba(0,0,0,.03)}
+.crop-card.verified:hover{box-shadow:0 0 0 2px var(--green),0 2px 10px rgba(46,125,50,.18)}
+.vchk{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:4px 0 12px;display:flex;align-items:center;gap:10px}
+.vchk.on{border-color:var(--green);background:var(--green-l)}
+.vchk input{width:20px;height:20px;accent-color:var(--green);cursor:pointer;flex:none}
+.vchk label{font-size:14px;font-weight:600;cursor:pointer;color:var(--ink)}
+.vchk .vmeta{font-size:11px;color:var(--mut);margin-left:auto;text-align:right}
+.vbadge{display:inline-block;background:var(--green);color:#fff;font-weight:700;font-size:10px;border-radius:5px;padding:1px 7px;margin-left:6px;vertical-align:middle}
 @media print{
   header .fld,header .btn,nav,.status-bar,#entry,.no-print{display:none!important}
   body{background:#fff}
@@ -110,6 +118,7 @@ h2.sec{font-size:15px;color:var(--green-d);margin:18px 0 10px}
       <button class="btn" onclick="stepCrop(1)">Next ›</button>
     </div>
     <div id="detailHdr" style="margin:4px 0 12px"></div>
+    <div id="verifyBox"></div>
     <div class="chartwrap"><canvas id="bigChart"></canvas></div>
     <div class="legend"><span style="background:#2E7D32"></span>Target curve<span style="background:#1565C0"></span>Actual height<span style="background:#8E24AA"></span>Event</div>
     <div id="detailTable"></div>
@@ -124,6 +133,11 @@ const DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbzyHISxggVA5Efj
 const DEFAULT_DATA = {"crops": [{"id": "8in Cuth Black Cloth WK33", "name": "8in Cuth Black Cloth WK33", "pot": "8\"", "grower": "all series", "location": "Black Cloth", "startWeek": 22, "weeksToFinish": 11, "startHeight": 6, "finishHeight": 15, "finishWeek": 33, "order": 1}, {"id": "10in HB Cuth Staviski WK33", "name": "10in HB Cuth Staviski WK33", "pot": "10\" HB", "grower": "Staviski", "location": "Black Cloth", "startWeek": 20, "weeksToFinish": 13, "startHeight": 6, "finishHeight": 16, "finishWeek": 33, "order": 2}, {"id": "8in Cuth Black Cloth WK34", "name": "8in Cuth Black Cloth WK34", "pot": "8\"", "grower": "all series", "location": "Black Cloth", "startWeek": 23, "weeksToFinish": 11, "startHeight": 6, "finishHeight": 15, "finishWeek": 34, "order": 3}, {"id": "8in Cuth Black Cloth WK35", "name": "8in Cuth Black Cloth WK35", "pot": "8\"", "grower": "all series", "location": "Black Cloth", "startWeek": 24, "weeksToFinish": 11, "startHeight": 6, "finishHeight": 15, "finishWeek": 35, "order": 4}, {"id": "10in Planter Cuth Aduro WK35", "name": "10in Planter Cuth Aduro WK35", "pot": "10\"", "grower": "Aduro", "location": "Black Cloth", "startWeek": 22, "weeksToFinish": 13, "startHeight": 7, "finishHeight": 19, "finishWeek": 35, "order": 5}, {"id": "10in Planter Cuth Staviski WK35", "name": "10in Planter Cuth Staviski WK35", "pot": "10\"", "grower": "Staviski", "location": "Black Cloth", "startWeek": 22, "weeksToFinish": 13, "startHeight": 7, "finishHeight": 19, "finishWeek": 35, "order": 6}, {"id": "8in Cuth Fonti WK36", "name": "8in Cuth Fonti WK36", "pot": "8\"", "grower": "Fonti", "location": "", "startWeek": 25, "weeksToFinish": 11, "startHeight": 6, "finishHeight": 15, "finishWeek": 36, "order": 7}, {"id": "8in Cuth Black Cloth WK36", "name": "8in Cuth Black Cloth WK36", "pot": "8\"", "grower": "all series", "location": "Black Cloth", "startWeek": 25, "weeksToFinish": 11, "startHeight": 6, "finishHeight": 15, "finishWeek": 36, "order": 8}, {"id": "10in Planter Cuth Aduro WK36", "name": "10in Planter Cuth Aduro WK36", "pot": "10\"", "grower": "Aduro", "location": "Black Cloth", "startWeek": 23, "weeksToFinish": 13, "startHeight": 7, "finishHeight": 19, "finishWeek": 36, "order": 9}, {"id": "10in Planter Cuth Fonti WK36", "name": "10in Planter Cuth Fonti WK36", "pot": "10\"", "grower": "Fonti", "location": "", "startWeek": 23, "weeksToFinish": 13, "startHeight": 7, "finishHeight": 19, "finishWeek": 36, "order": 10}, {"id": "10in Planter Cuth Staviski WK36", "name": "10in Planter Cuth Staviski WK36", "pot": "10\"", "grower": "Staviski", "location": "Black Cloth", "startWeek": 23, "weeksToFinish": 13, "startHeight": 7, "finishHeight": 19, "finishWeek": 36, "order": 11}, {"id": "10in HB Cuth Aduro WK36", "name": "10in HB Cuth Aduro WK36", "pot": "10\" HB", "grower": "Aduro", "location": "Black Cloth", "startWeek": 23, "weeksToFinish": 13, "startHeight": 6, "finishHeight": 16, "finishWeek": 36, "order": 12}, {"id": "10in HB Cuth Staviski WK36", "name": "10in HB Cuth Staviski WK36", "pot": "10\" HB", "grower": "Staviski", "location": "Black Cloth", "startWeek": 23, "weeksToFinish": 13, "startHeight": 6, "finishHeight": 16, "finishWeek": 36, "order": 13}, {"id": "8in Cuth Fonti WK37", "name": "8in Cuth Fonti WK37", "pot": "8\"", "grower": "Fonti", "location": "", "startWeek": 26, "weeksToFinish": 11, "startHeight": 6, "finishHeight": 15, "finishWeek": 37, "order": 14}, {"id": "8in Cuth Padre WK37", "name": "8in Cuth Padre WK37", "pot": "8\"", "grower": "Padre", "location": "", "startWeek": 26, "weeksToFinish": 11, "startHeight": 6, "finishHeight": 15, "finishWeek": 37, "order": 15}, {"id": "10in Planter Cuth Padre WK37", "name": "10in Planter Cuth Padre WK37", "pot": "10\"", "grower": "Padre", "location": "", "startWeek": 24, "weeksToFinish": 13, "startHeight": 7, "finishHeight": 19, "finishWeek": 37, "order": 16}, {"id": "10in HB Cuth Fonti WK37", "name": "10in HB Cuth Fonti WK37", "pot": "10\" HB", "grower": "Fonti", "location": "", "startWeek": 24, "weeksToFinish": 13, "startHeight": 6, "finishHeight": 16, "finishWeek": 37, "order": 17}, {"id": "12in Planter Tricolor Cuth Custom WK37", "name": "12in Planter Tricolor Cuth Custom WK37", "pot": "12\"", "grower": "Custom", "location": "", "startWeek": 24, "weeksToFinish": 13, "startHeight": 10, "finishHeight": 21, "finishWeek": 37, "order": 18}, {"id": "14in Cuth Fonti WK37", "name": "14in Cuth Fonti WK37", "pot": "14\"", "grower": "Fonti", "location": "", "startWeek": 21, "weeksToFinish": 16, "startHeight": 11, "finishHeight": 26, "finishWeek": 37, "order": 19}, {"id": "14in Cuth Padre WK37", "name": "14in Cuth Padre WK37", "pot": "14\"", "grower": "Padre", "location": "", "startWeek": 21, "weeksToFinish": 16, "startHeight": 11, "finishHeight": 26, "finishWeek": 37, "order": 20}, {"id": "8in Cuth Arluno WK38", "name": "8in Cuth Arluno WK38", "pot": "8\"", "grower": "Arluno", "location": "", "startWeek": 27, "weeksToFinish": 11, "startHeight": 6, "finishHeight": 15, "finishWeek": 38, "order": 21}, {"id": "8in Cuth Magnus WK38", "name": "8in Cuth Magnus WK38", "pot": "8\"", "grower": "Magnus", "location": "", "startWeek": 27, "weeksToFinish": 11, "startHeight": 6, "finishHeight": 15, "finishWeek": 38, "order": 22}, {"id": "8in Cuth Padre WK38", "name": "8in Cuth Padre WK38", "pot": "8\"", "grower": "Padre", "location": "", "startWeek": 27, "weeksToFinish": 11, "startHeight": 6, "finishHeight": 15, "finishWeek": 38, "order": 23}, {"id": "10in Planter Cuth Padre WK38", "name": "10in Planter Cuth Padre WK38", "pot": "10\"", "grower": "Padre", "location": "", "startWeek": 25, "weeksToFinish": 13, "startHeight": 7, "finishHeight": 19, "finishWeek": 38, "order": 24}, {"id": "10in HB Cuth Padre WK38", "name": "10in HB Cuth Padre WK38", "pot": "10\" HB", "grower": "Padre", "location": "", "startWeek": 25, "weeksToFinish": 13, "startHeight": 6, "finishHeight": 16, "finishWeek": 38, "order": 25}, {"id": "14in Cuth Arluno WK38", "name": "14in Cuth Arluno WK38", "pot": "14\"", "grower": "Arluno", "location": "", "startWeek": 22, "weeksToFinish": 16, "startHeight": 11, "finishHeight": 26, "finishWeek": 38, "order": 26}, {"id": "14in Cuth Magnus WK38", "name": "14in Cuth Magnus WK38", "pot": "14\"", "grower": "Magnus", "location": "", "startWeek": 22, "weeksToFinish": 16, "startHeight": 11, "finishHeight": 26, "finishWeek": 38, "order": 27}, {"id": "14in Cuth Padre WK38", "name": "14in Cuth Padre WK38", "pot": "14\"", "grower": "Padre", "location": "", "startWeek": 22, "weeksToFinish": 16, "startHeight": 11, "finishHeight": 26, "finishWeek": 38, "order": 28}, {"id": "14in GC Arluno WK38", "name": "14in GC Arluno WK38", "pot": "14\"", "grower": "Arluno", "location": "", "startWeek": 22, "weeksToFinish": 16, "startHeight": 11, "finishHeight": 26, "finishWeek": 38, "order": 29}, {"id": "14in GC Magnus WK38", "name": "14in GC Magnus WK38", "pot": "14\"", "grower": "Magnus", "location": "", "startWeek": 22, "weeksToFinish": 16, "startHeight": 11, "finishHeight": 26, "finishWeek": 38, "order": 30}, {"id": "14in Tricolor GC Custom WK38", "name": "14in Tricolor GC Custom WK38", "pot": "14\"", "grower": "Custom", "location": "", "startWeek": 22, "weeksToFinish": 16, "startHeight": 11, "finishHeight": 26, "finishWeek": 38, "order": 31}, {"id": "8in Magnus WK39", "name": "8in Magnus WK39", "pot": "8\"", "grower": "Magnus", "location": "", "startWeek": 28, "weeksToFinish": 11, "startHeight": 6, "finishHeight": 15, "finishWeek": 39, "order": 32}, {"id": "9in Magnus WK39", "name": "9in Magnus WK39", "pot": "9\"", "grower": "Magnus", "location": "", "startWeek": 28, "weeksToFinish": 11, "startHeight": 6, "finishHeight": 17, "finishWeek": 39, "order": 33}, {"id": "9in Tricolor Custom WK39", "name": "9in Tricolor Custom WK39", "pot": "9\"", "grower": "Custom", "location": "", "startWeek": 28, "weeksToFinish": 11, "startHeight": 6, "finishHeight": 17, "finishWeek": 39, "order": 34}, {"id": "8in Cuth Aduro WK40", "name": "8in Cuth Aduro WK40", "pot": "8\"", "grower": "Aduro", "location": "", "startWeek": 29, "weeksToFinish": 11, "startHeight": 6, "finishHeight": 15, "finishWeek": 40, "order": 35}, {"id": "8in Cuth Magnus WK40", "name": "8in Cuth Magnus WK40", "pot": "8\"", "grower": "Magnus", "location": "", "startWeek": 29, "weeksToFinish": 11, "startHeight": 6, "finishHeight": 15, "finishWeek": 40, "order": 36}, {"id": "8in Cuth Staviski WK40", "name": "8in Cuth Staviski WK40", "pot": "8\"", "grower": "Staviski", "location": "", "startWeek": 29, "weeksToFinish": 11, "startHeight": 6, "finishHeight": 15, "finishWeek": 40, "order": 37}, {"id": "10in Planter Cuth Staviski WK40", "name": "10in Planter Cuth Staviski WK40", "pot": "10\"", "grower": "Staviski", "location": "", "startWeek": 27, "weeksToFinish": 13, "startHeight": 7, "finishHeight": 19, "finishWeek": 40, "order": 38}, {"id": "14in Cuth Staviski WK40", "name": "14in Cuth Staviski WK40", "pot": "14\"", "grower": "Staviski", "location": "", "startWeek": 25, "weeksToFinish": 15, "startHeight": 11, "finishHeight": 26, "finishWeek": 40, "order": 39}, {"id": "9in Magnus WK41", "name": "9in Magnus WK41", "pot": "9\"", "grower": "Magnus", "location": "", "startWeek": 30, "weeksToFinish": 11, "startHeight": 6, "finishHeight": 17, "finishWeek": 41, "order": 40}], "readings": [], "events": [], "photos": []};
 let DATA = JSON.parse(JSON.stringify(DEFAULT_DATA));
 const EVENT_TYPES = ['PGR drench','PGR spray','Black cloth start','Black cloth end','Pinch','Spacing','Spray','Other'];
+/* Marker-verification rides on the Events channel so it syncs to the whole team
+   with no backend change. These two internal types are hidden from the Events Log,
+   event counts, and chart markers. */
+const VERIFY_ON='Marker verified', VERIFY_OFF='Marker unverified';
+const VERIFY_TYPES=[VERIFY_ON,VERIFY_OFF];
 let bigChart=null, miniCharts=[], chartEvents=[], chartWeeks=[];
 const photoCache={};
 
@@ -136,6 +150,22 @@ function lastActual(c){const cur=targetCurve(c);let last=null;for(const p of cur
 function statusOf(c){const la=lastActual(c);if(!la)return{cls:'none',label:'No data',delta:null,la:null};const d=+(la.actual-la.target).toFixed(1);let cls='on',label='On target';if(d>=0.8){cls='ahead';label='Ahead';}else if(d<=-0.8){cls='behind';label='Behind';}return{cls,label,delta:d,la};}
 function escA(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;');}
 function escH(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+/* ---------- marker verification helpers ---------- */
+function isVerifyType(t){return VERIFY_TYPES.indexOf(t)>=0;}
+function realEvents(cropId){return DATA.events.filter(e=>e.crop===cropId&&!isVerifyType(e.type));}
+function verifyEvent(cropId){let last=null;DATA.events.forEach(e=>{if(e.crop===cropId&&isVerifyType(e.type))last=e;});return last;}
+function isVerified(cropId){const e=verifyEvent(cropId);return !!(e&&e.type===VERIFY_ON);}
+function toggleVerify(cropId,checked){
+  const who=document.getElementById('who').value||'web';
+  const type=checked?VERIFY_ON:VERIFY_OFF;
+  const date=new Date().toISOString().slice(0,10);
+  DATA.events.push({crop:cropId,week:CUR_WEEK,date,type,note:'',loggedBy:who});
+  enqueue({action:'saveEvent',crops:[cropId],week:CUR_WEEK,date,type,note:'',loggedBy:who});
+  renderVerify(cropId);
+  const c=DATA.crops.find(x=>x.id===cropId);
+  toast((checked?'Marker verified':'Verification cleared')+' · '+(c?markerId(c):'')+(navigator.onLine?'':' (queued offline)'));
+}
 
 /* ---------- nav ---------- */
 function tab(t){document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));['dash','detail','log'].forEach(s=>document.getElementById(s).style.display=s===t?'':'none');if(t==='dash')renderDash();if(t==='detail')renderDetail();if(t==='log')renderLog();}
@@ -151,12 +181,13 @@ function renderDash(){
     const s=statusOf(c);counts[s.cls]++;
     const deltaTxt=s.delta===null?'—':(s.delta>0?'+':'')+s.delta+'"';
     const dCls=s.delta===null?'':(s.delta>=0.8?'delta-pos':s.delta<=-0.8?'delta-neg':'delta-on');
-    const nEv=DATA.events.filter(e=>e.crop===c.id).length;
+    const nEv=realEvents(c.id).length;
     const nPh=DATA.photos.filter(p=>p.crop===c.id).length;
     const extra=(nEv?`<span class="tag">${nEv} event${nEv>1?'s':''}</span>`:'')+(nPh?`<span class="tag bc">${nPh} photo${nPh>1?'s':''}</span>`:'');
-    html+=`<div class="card crop-card" onclick="openCrop('${escA(c.id)}')">
+    const verified=isVerified(c.id);
+    html+=`<div class="card crop-card${verified?' verified':''}" onclick="openCrop('${escA(c.id)}')">
       <div style="display:flex;justify-content:space-between;align-items:start">
-        <div><h3>${escH(c.name)}</h3><div class="sub">${c.pot} · ${escH(c.grower)}${c.location?' · '+escH(c.location):''} · ready wk ${c.finishWeek}</div></div>
+        <div><h3>${escH(c.name)}${verified?'<span class="vbadge">✓ Verified</span>':''}</h3><div class="sub">${c.pot} · ${escH(c.grower)}${c.location?' · '+escH(c.location):''} · ready wk ${c.finishWeek}</div></div>
         <span class="pill ${s.cls}">${s.label}</span>
       </div>
       <div class="metric"><b>${s.la?s.la.actual+'"':'—'}</b><span class="sub">actual${s.la?' (wk '+s.la.week+')':''}</span>
@@ -199,13 +230,23 @@ Chart.register(eventMarkerPlugin);
 function markerId(c){return 'M'+String(c.order).padStart(2,'0');}
 function fillCropSel(){const s=document.getElementById('cropSel');s.innerHTML=DATA.crops.map(c=>`<option value="${escA(c.id)}">${markerId(c)} · ${escH(c.name)}</option>`).join('');}
 function stepCrop(d){const s=document.getElementById('cropSel');let i=s.selectedIndex+d;if(i<0)i=0;if(i>=s.options.length)i=s.options.length-1;s.selectedIndex=i;renderDetail();}
+function renderVerify(cropId){
+  const box=document.getElementById('verifyBox'); if(!box)return;
+  const v=isVerified(cropId); const e=verifyEvent(cropId);
+  const meta=(e&&v)?`Verified${e.loggedBy?' by '+escH(e.loggedBy):''}${e.date?' · '+escH(e.date):''}`:'One-time field check — confirm the marker flag is placed and correct.';
+  box.className='vchk no-print'+(v?' on':'');
+  box.innerHTML=`<input type="checkbox" id="verifyChk" ${v?'checked':''} onchange="toggleVerify('${escA(cropId)}',this.checked)">
+    <label for="verifyChk">Marker flag placed &amp; verified in field</label>
+    <span class="vmeta">${meta}</span>`;
+}
 function renderDetail(){
   const id=document.getElementById('cropSel').value||(DATA.crops[0]&&DATA.crops[0].id);
   const c=DATA.crops.find(x=>x.id===id); if(!c)return;
   const cur=targetCurve(c);
   chartWeeks=cur.map(p=>p.week);
-  chartEvents=DATA.events.filter(e=>e.crop===c.id);
+  chartEvents=realEvents(c.id);
   const hdr=document.getElementById('detailHdr'); if(hdr)hdr.innerHTML=`<span class="idbadge">${markerId(c)}</span> <b>${escH(c.name)}</b> <span class="muted">— ${c.pot} · ${escH(c.grower)}${c.location?' · '+escH(c.location):''} · finish by wk ${c.finishWeek-1} · ready wk ${c.finishWeek}</span>`;
+  renderVerify(c.id);
   if(bigChart)bigChart.destroy();
   bigChart=new Chart(document.getElementById('bigChart'),{type:'line',
     data:{labels:cur.map(p=>'Wk '+p.week),datasets:[
@@ -242,7 +283,7 @@ function syncMeasure(cropId){const c=DATA.crops.find(x=>x.id===cropId);if(!c)ret
 
 /* ---------- events ---------- */
 function renderEvents(c){
-  const evs=DATA.events.filter(e=>e.crop===c.id).sort((a,b)=>(+a.week||0)-(+b.week||0)||String(a.date).localeCompare(b.date));
+  const evs=realEvents(c.id).sort((a,b)=>(+a.week||0)-(+b.week||0)||String(a.date).localeCompare(b.date));
   let list = evs.length ? '<ul class="evt-list">'+evs.map(e=>`<li><span class="evt-wk">WK${e.week||'?'}</span><span><b>${escH(e.type)}</b>${e.note?' — <span class="evt-note">'+escH(e.note)+'</span>':''} <span class="evt-note">· ${escH(e.date)}${e.loggedBy?' · '+escH(e.loggedBy):''}</span></span></li>`).join('')+'</ul>' : '<p class="muted">No events logged yet.</p>';
   const typeOpts=EVENT_TYPES.map(t=>`<option>${t}</option>`).join('');
   document.getElementById('eventsBox').innerHTML=`<h2 class="sec">Events</h2>
@@ -343,6 +384,7 @@ function drawLog(){
   const fP=(document.getElementById('logPot')||{}).value||'All pots';
   const fQ=((document.getElementById('logQ')||{}).value||'').toLowerCase();
   let rows=DATA.events.filter(e=>{
+    if(isVerifyType(e.type))return false;
     const c=byId[e.crop];
     if(fT!=='All types'&&e.type!==fT)return false;
     if(fP!=='All pots'&&(!c||c.pot!==fP))return false;
