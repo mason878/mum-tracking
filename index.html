@@ -77,8 +77,10 @@ h2.sec{font-size:15px;color:var(--green-d);margin:18px 0 10px}
 .crop-card .mini{pointer-events:none}
 .crop-card{cursor:pointer;transition:box-shadow .15s,border-color .15s}
 .crop-card:hover{border-color:var(--green);box-shadow:0 2px 10px rgba(46,125,50,.18)}
-.crop-card.verified{border-color:var(--green);box-shadow:0 0 0 2px var(--green),0 1px 2px rgba(0,0,0,.03)}
+.crop-card.measured{border-color:var(--green);border-width:2px;padding:13px}
+.crop-card.verified{box-shadow:0 0 0 2px var(--green),0 1px 2px rgba(0,0,0,.03)}
 .crop-card.verified:hover{box-shadow:0 0 0 2px var(--green),0 2px 10px rgba(46,125,50,.18)}
+.mbadge{display:inline-block;border:1.5px solid var(--green);color:var(--green-d);font-weight:700;font-size:10px;border-radius:5px;padding:0 6px;margin-left:6px;vertical-align:middle}
 .vchk{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:4px 0 12px;display:flex;align-items:center;gap:10px}
 .vchk.on{border-color:var(--green);background:var(--green-l)}
 .vchk input{width:20px;height:20px;accent-color:var(--green);cursor:pointer;flex:none}
@@ -146,6 +148,7 @@ const CUR_WEEK = isoWeek(new Date());
 
 function targetCurve(c){const span=Math.max(1,c.weeksToFinish-1);const out=[];for(let i=0;i<=c.weeksToFinish;i++){const t=c.startHeight+(c.finishHeight-c.startHeight)*Math.min(i,span)/span;out.push({week:c.startWeek+i,idx:i,target:+t.toFixed(2)});}return out;}
 function actualFor(cropId,week){const r=DATA.readings.find(x=>x.crop===cropId&&+x.week===+week);return r?+r.actual:null;}
+function measuredThisWeek(c){return actualFor(c.id,CUR_WEEK)!==null;}
 function lastActual(c){const cur=targetCurve(c);let last=null;for(const p of cur){const a=actualFor(c.id,p.week);if(a!==null)last={week:p.week,actual:a,target:p.target};}return last;}
 function statusOf(c){const la=lastActual(c);if(!la)return{cls:'none',label:'No data',delta:null,la:null};const d=+(la.actual-la.target).toFixed(1);let cls='on',label='On target';if(d>=0.8){cls='ahead';label='Ahead';}else if(d<=-0.8){cls='behind';label='Behind';}return{cls,label,delta:d,la};}
 function escA(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;');}
@@ -176,18 +179,20 @@ function renderDash(){
   miniCharts.forEach(c=>c.destroy());miniCharts=[];
   const el=document.getElementById('dash');
   const counts={ahead:0,on:0,behind:0,none:0};
+  let measuredCount=0;
   let html='<div class="grid">';
   DATA.crops.forEach((c,i)=>{
     const s=statusOf(c);counts[s.cls]++;
+    const measured=measuredThisWeek(c);if(measured)measuredCount++;
     const deltaTxt=s.delta===null?'—':(s.delta>0?'+':'')+s.delta+'"';
     const dCls=s.delta===null?'':(s.delta>=0.8?'delta-pos':s.delta<=-0.8?'delta-neg':'delta-on');
     const nEv=realEvents(c.id).length;
     const nPh=DATA.photos.filter(p=>p.crop===c.id).length;
     const extra=(nEv?`<span class="tag">${nEv} event${nEv>1?'s':''}</span>`:'')+(nPh?`<span class="tag bc">${nPh} photo${nPh>1?'s':''}</span>`:'');
     const verified=isVerified(c.id);
-    html+=`<div class="card crop-card${verified?' verified':''}" onclick="openCrop('${escA(c.id)}')">
+    html+=`<div class="card crop-card${measured?' measured':''}${verified?' verified':''}" onclick="openCrop('${escA(c.id)}')">
       <div style="display:flex;justify-content:space-between;align-items:start">
-        <div><h3>${escH(c.name)}${verified?'<span class="vbadge">✓ Verified</span>':''}</h3><div class="sub">${c.pot} · ${escH(c.grower)}${c.location?' · '+escH(c.location):''} · ready wk ${c.finishWeek}</div></div>
+        <div><h3>${escH(c.name)}${measured?`<span class="mbadge">✓ Wk ${CUR_WEEK}</span>`:''}${verified?'<span class="vbadge">✓ Verified</span>':''}</h3><div class="sub">${c.pot} · ${escH(c.grower)}${c.location?' · '+escH(c.location):''} · ready wk ${c.finishWeek}</div></div>
         <span class="pill ${s.cls}">${s.label}</span>
       </div>
       <div class="metric"><b>${s.la?s.la.actual+'"':'—'}</b><span class="sub">actual${s.la?' (wk '+s.la.week+')':''}</span>
@@ -203,6 +208,7 @@ function renderDash(){
       <div class="card" style="padding:10px 16px"><span class="pill on">On target</span> <b>${counts.on}</b></div>
       <div class="card" style="padding:10px 16px"><span class="pill behind">Behind</span> <b>${counts.behind}</b></div>
       <div class="card" style="padding:10px 16px"><span class="pill none">No data</span> <b>${counts.none}</b></div>
+      <div class="card" style="padding:10px 16px;margin-left:auto"><span class="mbadge" style="margin-left:0">✓ Measured wk ${CUR_WEEK}</span> <b>${measuredCount} / ${DATA.crops.length}</b></div>
     </div>`+html;
 
 }
