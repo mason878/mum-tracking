@@ -161,6 +161,10 @@ function targetCurve(c){const span=Math.max(1,c.weeksToFinish-1);const out=[];fo
 function actualFor(cropId,week){const r=DATA.readings.find(x=>x.crop===cropId&&+x.week===+week);return r?+r.actual:null;}
 function measuredThisWeek(c){return actualFor(c.id,CUR_WEEK)!==null;}
 function lastActual(c){const cur=targetCurve(c);let last=null;for(const p of cur){const a=actualFor(c.id,p.week);if(a!==null)last={week:p.week,actual:a,target:p.target};}return last;}
+/* readings in week order (only weeks that have an actual) */
+function readingSeq(c){const out=[];targetCurve(c).forEach(p=>{const a=actualFor(c.id,p.week);if(a!==null)out.push({week:p.week,actual:a});});return out;}
+/* growth since the previous reading, plus per-week rate when weeks were skipped */
+function lastGrowth(c){const rs=readingSeq(c);if(rs.length<2)return null;const a=rs[rs.length-2],b=rs[rs.length-1];const weeks=Math.max(1,b.week-a.week);const growth=+(b.actual-a.actual).toFixed(1);return{growth,fromWeek:a.week,toWeek:b.week,weeks,perWeek:+(growth/weeks).toFixed(1)};}
 function statusOf(c){const la=lastActual(c);if(!la)return{cls:'none',label:'No data',delta:null,la:null};const d=+(la.actual-la.target).toFixed(1);let cls='on',label='On target';if(d>=0.8){cls='ahead';label='Ahead';}else if(d<=-0.8){cls='behind';label='Behind';}return{cls,label,delta:d,la};}
 function escA(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;');}
 function escH(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
@@ -197,6 +201,9 @@ function renderDash(){
     const measured=measuredThisWeek(c);if(measured)measuredCount++;
     const deltaTxt=s.delta===null?'—':(s.delta>0?'+':'')+s.delta+'"';
     const dCls=s.delta===null?'':(s.delta>=0.8?'delta-pos':s.delta<=-0.8?'delta-neg':'delta-on');
+    const g=lastGrowth(c);
+    const gCls=g===null?'':(g.growth>0?'delta-pos':g.growth<0?'delta-neg':'delta-on');
+    const gLine=g===null?'':`<div class="sub" style="margin:0 0 6px">📈 Weekly growth <b class="${gCls}">${(g.growth>0?'+':'')+g.growth}"</b> <span class="muted">wk ${g.fromWeek}→${g.toWeek}${g.weeks>1?` · ${(g.perWeek>0?'+':'')+g.perWeek}"/wk`:''}</span></div>`;
     const nEv=realEvents(c.id).length;
     const nPh=DATA.photos.filter(p=>p.crop===c.id).length;
     const extra=(nEv?`<span class="tag">${nEv} event${nEv>1?'s':''}</span>`:'')+(nPh?`<span class="tag bc">${nPh} photo${nPh>1?'s':''}</span>`:'');
@@ -208,6 +215,7 @@ function renderDash(){
       </div>
       <div class="metric"><b>${s.la?s.la.actual+'"':'—'}</b><span class="sub">actual${s.la?' (wk '+s.la.week+')':''}</span>
         <span class="${dCls}" style="margin-left:auto">${deltaTxt} vs target</span></div>
+      ${gLine}
       ${extra?`<div style="margin:2px 0 6px">${extra}</div>`:''}
       <div class="prog"><div class="prog-fill ${s.cls}" style="width:${Math.max(0,Math.min(100,Math.round((CUR_WEEK-c.startWeek)/((c.finishWeek-1)-c.startWeek)*100)))}%"></div></div>
       <div class="prog-lbl"><span class="idstamp">${markerId(c)}</span><span><b>${((c.finishWeek-1)-CUR_WEEK)>0?((c.finishWeek-1)-CUR_WEEK)+' wk to finish':(((c.finishWeek-1)-CUR_WEEK)===0?'finish this week':(CUR_WEEK-(c.finishWeek-1))+' wk past finish')}</b> · ${Math.max(0,Math.min(100,Math.round((CUR_WEEK-c.startWeek)/((c.finishWeek-1)-c.startWeek)*100)))}% grown</span></div>
@@ -284,10 +292,19 @@ function renderDetail(){
         <button class="btn go" onclick="saveMeasure('${escA(c.id)}')">Save</button>
         <span id="mStat" class="eStat"></span>
       </div></div>`;
+  let prevA=null,prevW=null;
   let rows=cur.map(p=>{const a=actualFor(c.id,p.week);const d=a===null?null:+(a-p.target).toFixed(1);
     const dCls=d===null?'':(d>=0.8?'delta-pos':d<=-0.8?'delta-neg':'delta-on');
-    return `<tr class="${p.week===CUR_WEEK?'cur':''}"><td>${p.idx}</td><td>${p.week}</td><td>${p.target.toFixed(1)}"</td><td>${a===null?'—':a+'"'}</td><td class="${dCls}">${d===null?'':(d>0?'+':'')+d+'"'}</td></tr>`;}).join('');
-  document.getElementById('detailTable').innerHTML=measure+`<h2 class="sec">Week-by-week</h2><table><tr><th>Wk idx</th><th>Week #</th><th>Target</th><th>Actual</th><th>Δ</th></tr>${rows}</table>`;
+    let gTxt='',gCls='';
+    if(a!==null){
+      if(prevA!==null){const wd=Math.max(1,p.week-prevW);const g=+(a-prevA).toFixed(1);
+        gCls=g>0?'delta-pos':(g<0?'delta-neg':'delta-on');
+        gTxt=(g>0?'+':'')+g+'"'+(wd>1?` <span class="muted">(${(g/wd>0?'+':'')+(g/wd).toFixed(1)}"/wk)</span>`:'');}
+      else{gTxt='<span class="muted">—</span>';}
+      prevA=a;prevW=p.week;
+    }
+    return `<tr class="${p.week===CUR_WEEK?'cur':''}"><td>${p.idx}</td><td>${p.week}</td><td>${p.target.toFixed(1)}"</td><td>${a===null?'—':a+'"'}</td><td class="${gCls}">${gTxt}</td><td class="${dCls}">${d===null?'':(d>0?'+':'')+d+'"'}</td></tr>`;}).join('');
+  document.getElementById('detailTable').innerHTML=measure+`<h2 class="sec">Week-by-week</h2><p class="hint" style="margin:0 0 8px">Growth = inches gained since the previous measurement (per-week rate shown when weeks were skipped).</p><table><tr><th>Wk idx</th><th>Week #</th><th>Target</th><th>Actual</th><th>Growth</th><th>Δ</th></tr>${rows}</table>`;
   syncMeasure(c.id);
   renderEvents(c);
   renderPhotos(c);
