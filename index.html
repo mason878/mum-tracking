@@ -277,7 +277,7 @@ function renderDetail(){
       {label:'Actual',data:cur.map(p=>actualFor(c.id,p.week)),borderColor:'#1565C0',borderWidth:2.5,spanGaps:true,tension:.2,pointRadius:3}
     ]},
     options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{position:'top',labels:{filter:i=>i.text!=='Spec high'}},title:{display:true,text:c.name+'  —  Height (in) vs Week',font:{size:14}}},
+      plugins:{legend:{position:'top',labels:{filter:i=>i.text!=='Spec high'&&i.text!=='Spec low'}},title:{display:true,text:c.name+'  —  Height (in) vs Week',font:{size:14}}},
       scales:{y:{title:{display:true,text:'Height (in)'},beginAtZero:false}}}});
   renderSpecNote(c);
   const wk=CUR_WEEK;
