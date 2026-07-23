@@ -7,7 +7,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
 :root{--green:#2E7D32;--green-d:#1B5E20;--green-l:#E8F5E9;--ink:#1f2a24;--mut:#6b7a70;
---ahead:#1565C0;--on:#2E7D32;--behind:#C62828;--bg:#f6f8f6;--card:#fff;--line:#e2e8e3;--evt:#8E24AA;--spec:#00897B;}
+--ahead:#1565C0;--on:#2E7D32;--behind:#C62828;--bg:#f6f8f6;--card:#fff;--line:#e2e8e3;--evt:#8E24AA;--spec:#00897B;--due:#E6A100;}
 *{box-sizing:border-box}
 body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg);}
 header{background:var(--green-d);color:#fff;padding:14px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
@@ -86,6 +86,18 @@ h2.sec{font-size:15px;color:var(--green-d);margin:18px 0 10px}
 .crop-card .mini{pointer-events:none}
 .crop-card{cursor:pointer;transition:box-shadow .15s,border-color .15s}
 .crop-card:hover{border-color:var(--green);box-shadow:0 2px 10px rgba(46,125,50,.18)}
+/* --- measured-this-week status (resets weekly) --- */
+.crop-card.measured{border:2px solid var(--green);box-shadow:0 0 0 3px var(--green-l)}
+.crop-card.measured:hover{box-shadow:0 2px 10px rgba(46,125,50,.22)}
+.crop-card.due{border:2px solid var(--due)}
+.crop-card.due:hover{border-color:var(--due);box-shadow:0 2px 10px rgba(230,161,0,.20)}
+.mchip{display:inline-block;font-size:10px;font-weight:700;border-radius:5px;padding:1px 7px;flex:none}
+.mchip.ok{background:var(--green-l);color:var(--green-d)}
+.mchip.no{background:#FFF4D6;color:#8a6100}
+.mchip.idle{background:#eef2ef;color:#6b7a70}
+.grown{font-weight:700;font-size:12px}
+.grown.up{color:var(--on)}.grown.down{color:var(--behind)}.grown.flat{color:var(--mut)}
+.wkcount{padding:10px 16px;display:flex;align-items:center;gap:8px}.wkcount b{font-size:18px}
 @media print{
   header .fld,header .btn,nav,.status-bar,#entry,.no-print{display:none!important}
   body{background:#fff}
@@ -188,6 +200,24 @@ function specStatus(c){
   if(pf<sp[0]) return {cls:'behind',key:'under',label:'Under spec',proj:pf,spec:sp};
   return {cls:'on',key:'ok',label:'In spec',proj:pf,spec:sp};
 }
+/* has this crop had a height logged for the CURRENT week? auto-resets each week */
+function measuredThisWeek(c){return actualFor(c.id,CUR_WEEK)!==null;}
+/* is the crop within its growing window this week (so it's expected to be measured)? */
+function isActive(c){return CUR_WEEK>=c.startWeek && CUR_WEEK<=c.finishWeek;}
+/* inches grown this week = current-week reading minus the most recent prior reading.
+   returns {inches, perWeek, wks, prevWk} or null if this week isn't measured / no prior reading. */
+function weeklyGrowth(c){
+  const cw=actualFor(c.id,CUR_WEEK);
+  if(cw===null)return null;
+  let prev=null,prevWk=null;
+  for(const p of targetCurve(c)){
+    if(p.week<CUR_WEEK){const a=actualFor(c.id,p.week);if(a!==null){prev=a;prevWk=p.week;}}
+  }
+  if(prev===null)return null;
+  const wks=Math.max(1,CUR_WEEK-prevWk);
+  const inches=+(cw-prev).toFixed(1);
+  return {inches,perWeek:+(inches/wks).toFixed(1),wks,prevWk};
+}
 function escA(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;');}
 function escH(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
@@ -200,9 +230,19 @@ function renderDash(){
   miniCharts.forEach(c=>c.destroy());miniCharts=[];
   const el=document.getElementById('dash');
   const counts={ahead:0,on:0,behind:0,none:0};
+  let measuredCount=0, activeCount=0;
   let html='<div class="grid">';
   DATA.crops.forEach((c,i)=>{
     const s=statusOf(c);counts[s.cls]++;
+    const meas=measuredThisWeek(c);
+    const active=isActive(c);
+    const gw=weeklyGrowth(c);
+    if(active)activeCount++;
+    if(meas)measuredCount++;
+    const cardCls='card crop-card'+(meas?' measured':(active?' due':''));
+    const mchip=meas
+      ? `<span class="mchip ok">✓ measured wk ${CUR_WEEK}</span>`
+      : (active?`<span class="mchip no">needs wk ${CUR_WEEK}</span>`:`<span class="mchip idle">not active</span>`);
     const deltaTxt=s.delta===null?'—':(s.delta>0?'+':'')+s.delta+'"';
     const dCls=s.delta===null?'':(s.delta>=0.8?'delta-pos':s.delta<=-0.8?'delta-neg':'delta-on');
     const nEv=DATA.events.filter(e=>e.crop===c.id).length;
@@ -210,26 +250,30 @@ function renderDash(){
     const extra=(nEv?`<span class="tag">${nEv} event${nEv>1?'s':''}</span>`:'')+(nPh?`<span class="tag bc">${nPh} photo${nPh>1?'s':''}</span>`:'');
     const ss=specStatus(c);
     const specLine=ss?`<div class="spec-line muted">Finish: <b class="${ss.key}">${ss.label}</b>${ss.proj!==null?' · proj '+ss.proj+'"':''} · spec ${ss.spec[0]}–${ss.spec[1]}"</div>`:'';
-    html+=`<div class="card crop-card" onclick="openCrop('${escA(c.id)}')">
+    html+=`<div class="${cardCls}" onclick="openCrop('${escA(c.id)}')">
       <div style="display:flex;justify-content:space-between;align-items:start">
         <div><h3>${escH(c.name)}</h3><div class="sub">${c.pot} · ${escH(c.grower)}${c.location?' · '+escH(c.location):''} · ready wk ${c.finishWeek}</div></div>
         <span class="pill ${s.cls}">${s.label}</span>
       </div>
       <div class="metric"><b>${s.la?s.la.actual+'"':'—'}</b><span class="sub">actual${s.la?' (wk '+s.la.week+')':''}</span>
         <span class="${dCls}" style="margin-left:auto">${deltaTxt} vs target</span></div>
+      ${gw?`<div style="margin:0 0 2px"><span class="grown ${gw.inches>0?'up':gw.inches<0?'down':'flat'}">${gw.inches>0?'▲ +':gw.inches<0?'▼ ':'▪ '}${gw.inches}" grown ${gw.wks>1?'(last '+gw.wks+' wks · '+gw.perWeek+'"/wk)':'this wk'}</span></div>`:''}
       ${specLine}
       ${extra?`<div style="margin:2px 0 6px">${extra}</div>`:''}
       <div class="prog"><div class="prog-fill ${s.cls}" style="width:${Math.max(0,Math.min(100,Math.round((CUR_WEEK-c.startWeek)/((c.finishWeek-1)-c.startWeek)*100)))}%"></div></div>
-      <div class="prog-lbl"><span class="idstamp">${markerId(c)}</span><span><b>${((c.finishWeek-1)-CUR_WEEK)>0?((c.finishWeek-1)-CUR_WEEK)+' wk to finish':(((c.finishWeek-1)-CUR_WEEK)===0?'finish this week':(CUR_WEEK-(c.finishWeek-1))+' wk past finish')}</b> · ${Math.max(0,Math.min(100,Math.round((CUR_WEEK-c.startWeek)/((c.finishWeek-1)-c.startWeek)*100)))}% grown</span></div>
+      <div class="prog-lbl"><span class="idstamp">${markerId(c)}</span>${mchip}<span style="margin-left:auto"><b>${((c.finishWeek-1)-CUR_WEEK)>0?((c.finishWeek-1)-CUR_WEEK)+' wk to finish':(((c.finishWeek-1)-CUR_WEEK)===0?'finish this week':(CUR_WEEK-(c.finishWeek-1))+' wk past finish')}</b> · ${Math.max(0,Math.min(100,Math.round((CUR_WEEK-c.startWeek)/((c.finishWeek-1)-c.startWeek)*100)))}% grown</span></div>
     </div>`;
   });
   html+='</div>';
+  const dueCount=Math.max(0,activeCount-measuredCount);
   el.innerHTML=`<div class="row no-print">
+      <div class="card wkcount"><span class="mchip ok">This week</span> <b>${measuredCount}/${activeCount}</b> <span class="sub" style="margin:0">measured (wk ${CUR_WEEK}) · ${dueCount} still due</span></div>
       <div class="card" style="padding:10px 16px"><span class="pill ahead">Ahead</span> <b>${counts.ahead}</b></div>
       <div class="card" style="padding:10px 16px"><span class="pill on">On target</span> <b>${counts.on}</b></div>
       <div class="card" style="padding:10px 16px"><span class="pill behind">Behind</span> <b>${counts.behind}</b></div>
       <div class="card" style="padding:10px 16px"><span class="pill none">No data</span> <b>${counts.none}</b></div>
-    </div>`+html;
+    </div>
+    <div class="legend no-print" style="margin:0 2px 6px"><span style="background:var(--green);border-radius:3px"></span>green = measured this week<span style="background:var(--due);border-radius:3px"></span>amber = due this week</div>`+html;
 
 }
 
@@ -291,13 +335,17 @@ function renderDetail(){
         <button class="btn go" onclick="saveMeasure('${escA(c.id)}')">Save</button>
         <span id="mStat" class="eStat"></span>
       </div></div>`;
+  let prevA=null;
   let rows=cur.map(p=>{const a=actualFor(c.id,p.week);const d=a===null?null:+(a-p.target).toFixed(1);
     const dCls=d===null?'':(d>=0.8?'delta-pos':d<=-0.8?'delta-neg':'delta-on');
     const lo=band?band.low[p.idx]:null, hi=band?band.high[p.idx]:null;
     const specCell=band?`${lo.toFixed(1)}–${hi.toFixed(1)}"`:'—';
     const oos=(band&&a!==null&&(a<lo-0.001||a>hi+0.001))?'oos':'';
-    return `<tr class="${p.week===CUR_WEEK?'cur':''}"><td>${p.idx}</td><td>${p.week}</td><td>${p.target.toFixed(1)}"</td><td>${specCell}</td><td class="${oos}">${a===null?'—':a+'"'}</td><td class="${dCls}">${d===null?'':(d>0?'+':'')+d+'"'}</td></tr>`;}).join('');
-  document.getElementById('detailTable').innerHTML=measure+`<h2 class="sec">Week-by-week</h2><table><tr><th>Wk idx</th><th>Week #</th><th>Target</th><th>Spec range</th><th>Actual</th><th>Δ</th></tr>${rows}</table>`;
+    const g=(a!==null&&prevA!==null)?+(a-prevA).toFixed(1):null;
+    const gCls=g===null?'':(g>0?'grown up':g<0?'grown down':'grown flat');
+    if(a!==null)prevA=a;
+    return `<tr class="${p.week===CUR_WEEK?'cur':''}"><td>${p.idx}</td><td>${p.week}</td><td>${p.target.toFixed(1)}"</td><td>${specCell}</td><td class="${oos}">${a===null?'—':a+'"'}</td><td class="${dCls}">${d===null?'':(d>0?'+':'')+d+'"'}</td><td class="${gCls}">${g===null?'':(g>0?'+':'')+g+'"'}</td></tr>`;}).join('');
+  document.getElementById('detailTable').innerHTML=measure+`<h2 class="sec">Week-by-week</h2><table><tr><th>Wk idx</th><th>Week #</th><th>Target</th><th>Spec range</th><th>Actual</th><th>Δ vs target</th><th>Grown/wk</th></tr>${rows}</table>`;
   syncMeasure(c.id);
   renderEvents(c);
   renderPhotos(c);
